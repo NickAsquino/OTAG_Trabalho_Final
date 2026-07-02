@@ -55,7 +55,7 @@ while running:
     # Texto do bloco 10
     texto_10 = fonte.render("CÉU", True, "black")
     x_texto_10 = CENTRO_X - texto_10.get_width() // 2 - 3
-    y_texto_10 = 100 - raio_10 + 18 # Um pouco abaixo do topo do arco
+    y_texto_10 = 100 - raio_10 + 18
     tela.blit(texto_10, (x_texto_10, y_texto_10))
 
 
