@@ -90,6 +90,7 @@ class JogoAmarelinha:
         self.dica_usada = False          # Se a dica foi usada na rodada
         self.dica_indice = 0             # Índice da dica sendo mostrada
         self.mensagem_feedback = ""      # Mensagem de feedback para o jogador
+        self.casas_acertadas_na_rodada = [] # Casas que já foram pisadas e acertadas nesta rodada
 
         # --- Controle do Flash da Sequência ---
         self.flash_inicio = 0           # Tempo de início do flash atual
@@ -348,6 +349,7 @@ class JogoAmarelinha:
         self.estado = self.ESTADO_CONTAGEM
         self.contagem_numero = 3
         self.contagem_inicio = time.time()
+        self._tocar_som("inicio")
         print(f"  [CONTAGEM] 3... 2... 1... Vai!")
 
     def iniciar_rodada(self):
@@ -361,6 +363,7 @@ class JogoAmarelinha:
         self.cor_feedback = None
         self.casa_correta_flash = None
         self.mensagem_feedback = ""
+        self.casas_acertadas_na_rodada = []
 
         # Inicia a animação de mostrar a sequência
         self.estado = self.ESTADO_MEMORIZAR
@@ -460,6 +463,8 @@ class JogoAmarelinha:
         self.casa_feedback = casa
         self.cor_feedback = COR_ACERTO
         self.mensagem_feedback = f"+{PONTOS_ACERTO} pontos!"
+        if casa not in self.casas_acertadas_na_rodada:
+            self.casas_acertadas_na_rodada.append(casa)
         self.tempo_inicio_estado = time.time()
         self.estado = self.ESTADO_FEEDBACK
         self._tocar_som("acerto")
@@ -623,6 +628,9 @@ class JogoAmarelinha:
         if tempo_decorrido >= TEMPO_CONTAGEM:
             self.contagem_numero -= 1
             self.contagem_inicio = agora
+            
+            if self.contagem_numero > 0:
+                self._tocar_som("inicio")
 
             if self.contagem_numero <= 0:
                 # Contagem terminou → iniciar rodada
@@ -1359,28 +1367,30 @@ class JogoAmarelinha:
             )
         self.tela.blit(resultado_txt, (LARGURA_TELA // 2 - resultado_txt.get_width() // 2, 105))
 
-        # --- Tabela comparativa ---
-        col1_x = LARGURA_TELA // 2 - 250
-        col2_x = LARGURA_TELA // 2 + 50
-        header_y = 160
+        # --- Tabela comparativa (Cartões à direita) ---
+        card_w = 240
+        card_h = 340
+        card1_x = LARGURA_TELA - 500
+        card2_x = LARGURA_TELA - 250
+        header_y = 130
 
         # Cores dos cartões baseadas no resultado
         cor_j1 = COR_OURO if vencedor == 1 else (COR_EMPATE if vencedor == 0 else COR_PRATA)
         cor_j2 = COR_OURO if vencedor == 2 else (COR_EMPATE if vencedor == 0 else COR_PRATA)
 
         # Cartão Jogador 1
-        card1 = pygame.Rect(col1_x - 15, header_y - 10, 280, 340)
+        card1 = pygame.Rect(card1_x, header_y, card_w, card_h)
         pygame.draw.rect(self.tela, (40, 45, 65), card1, border_radius=12)
         pygame.draw.rect(self.tela, cor_j1, card1, width=2, border_radius=12)
         borda_top1 = pygame.Rect(card1.x, card1.y, card1.width, 6)
         pygame.draw.rect(self.tela, COR_JOGADOR1, borda_top1, border_radius=3)
 
         h1 = self.fonte_categoria_titulo.render(self.nomes_jogadores[0], True, COR_JOGADOR1)
-        self.tela.blit(h1, (card1.centerx - h1.get_width() // 2, header_y + 10))
+        self.tela.blit(h1, (card1.centerx - h1.get_width() // 2, header_y + 15))
 
         if vencedor == 1:
             badge = self.fonte_categoria_icone.render("VENCEDOR", True, COR_OURO)
-            self.tela.blit(badge, (card1.centerx - badge.get_width() // 2, header_y + 45))
+            self.tela.blit(badge, (card1.centerx - badge.get_width() // 2, header_y + 50))
 
         stats1 = [
             (f"Pontuacao: {r1['pontuacao']}", COR_TEXTO_PONTOS),
@@ -1390,25 +1400,25 @@ class JogoAmarelinha:
             (f"Dicas: {r1['dicas_usadas']}", COR_TEXTO_INFO),
             (f"Fase: {CATEGORIAS[r1['categoria']]['fases'][r1['fase_alcancada']]['nome']}", COR_TEXTO_FASE),
         ]
-        y = header_y + 75
+        y = header_y + 80
         for texto, cor in stats1:
             txt = self.fonte_info.render(texto, True, cor)
             self.tela.blit(txt, (card1.centerx - txt.get_width() // 2, y))
             y += 35
 
         # Cartão Jogador 2
-        card2 = pygame.Rect(col2_x - 15, header_y - 10, 280, 340)
+        card2 = pygame.Rect(card2_x, header_y, card_w, card_h)
         pygame.draw.rect(self.tela, (40, 45, 65), card2, border_radius=12)
         pygame.draw.rect(self.tela, cor_j2, card2, width=2, border_radius=12)
         borda_top2 = pygame.Rect(card2.x, card2.y, card2.width, 6)
         pygame.draw.rect(self.tela, COR_JOGADOR2, borda_top2, border_radius=3)
 
         h2 = self.fonte_categoria_titulo.render(self.nomes_jogadores[1], True, COR_JOGADOR2)
-        self.tela.blit(h2, (card2.centerx - h2.get_width() // 2, header_y + 10))
+        self.tela.blit(h2, (card2.centerx - h2.get_width() // 2, header_y + 15))
 
         if vencedor == 2:
             badge2 = self.fonte_categoria_icone.render("VENCEDOR", True, COR_OURO)
-            self.tela.blit(badge2, (card2.centerx - badge2.get_width() // 2, header_y + 45))
+            self.tela.blit(badge2, (card2.centerx - badge2.get_width() // 2, header_y + 50))
 
         stats2 = [
             (f"Pontuacao: {r2['pontuacao']}", COR_TEXTO_PONTOS),
@@ -1437,13 +1447,21 @@ class JogoAmarelinha:
                 criterio = "Desempate: Menor quantidade de dicas"
         if criterio:
             crit_txt = self.fonte_instrucao.render(criterio, True, COR_TEXTO_FASE)
-            self.tela.blit(crit_txt, (LARGURA_TELA // 2 - crit_txt.get_width() // 2, 520))
+            # Centraliza em relação aos cartões
+            x_crit = (card1_x + card2_x + card_w) // 2 - crit_txt.get_width() // 2
+            self.tela.blit(crit_txt, (x_crit, header_y + card_h + 15))
 
-        # --- Botões ---
+        # --- Botões (Alinhados à esquerda) ---
         pos_mouse = self.traduzir_posicao_mouse(pygame.mouse.get_pos())
+        
+        btn_w = 240
+        btn_x = 30  # Esquerda
+        # Posiciona na vertical responsivamente
+        btn_y1 = ALTURA_TELA - 140
+        btn_y2 = ALTURA_TELA - 75
 
         # Botão "Jogar Novamente"
-        self.botao_classificacao_jogar = pygame.Rect(LARGURA_TELA // 2 - 140, 570, 280, 50)
+        self.botao_classificacao_jogar = pygame.Rect(btn_x, btn_y1, btn_w, 50)
         hover_jogar = self.botao_classificacao_jogar.collidepoint(pos_mouse)
         cor_btn = COR_BOTAO_HOVER if hover_jogar else COR_BOTAO
         pygame.draw.rect(self.tela, cor_btn, self.botao_classificacao_jogar, border_radius=12)
@@ -1453,7 +1471,7 @@ class JogoAmarelinha:
                               self.botao_classificacao_jogar.centery - txt.get_height() // 2))
 
         # Botão "Menu Inicial"
-        self.botao_classificacao_menu = pygame.Rect(LARGURA_TELA // 2 - 140, 635, 280, 50)
+        self.botao_classificacao_menu = pygame.Rect(btn_x, btn_y2, btn_w, 50)
         hover_menu = self.botao_classificacao_menu.collidepoint(pos_mouse)
         cor_btn2 = CINZA_ESCURO if not hover_menu else CINZA_MEDIO
         pygame.draw.rect(self.tela, cor_btn2, self.botao_classificacao_menu, border_radius=12)
@@ -1557,6 +1575,8 @@ class JogoAmarelinha:
             # Verifica feedback (acerto/erro)
             if numero == self.casa_feedback and self.cor_feedback:
                 cor = self.cor_feedback
+            elif numero in self.casas_acertadas_na_rodada:
+                cor = COR_ACERTO
 
             # Verifica flash da casa correta (após erro)
             if numero == self.casa_correta_flash:
@@ -1586,36 +1606,54 @@ class JogoAmarelinha:
         cor = COR_TEXTO_INFO
 
         if self.estado == self.ESTADO_MEMORIZAR:
-            msg = "MEMORIZE A SEQUENCIA!"
+            msg = "MEMORIZE A\nSEQUÊNCIA!"
             cor = COR_ILUMINADA
         elif self.estado == self.ESTADO_REPRODUZIR:
-            msg = "SUA VEZ! Clique nas casas na ordem correta"
+            msg = "SUA VEZ!\nClique/Pise nas casas\nna ordem correta"
             cor = COR_TEXTO_INFO
-            # Mostra tempo restante para dica
             tempo_ocioso = time.time() - self.ultimo_clique_tempo
             if tempo_ocioso > 1.5:
                 tempo_restante = max(0, TEMPO_DICA - tempo_ocioso)
-                msg += f"  (dica em {tempo_restante:.1f}s)"
+                msg += f"\n(dica em {tempo_restante:.1f}s)"
         elif self.estado == self.ESTADO_FEEDBACK:
             msg = self.mensagem_feedback
             cor = COR_ACERTO if self.cor_feedback == COR_ACERTO else COR_ERRO
         elif self.estado == self.ESTADO_DICA:
-            msg = "DICA: Observe a sequencia novamente!"
+            msg = "DICA:\nObserve a sequência\nnovamente!"
             cor = COR_DICA
         elif self.estado == self.ESTADO_FIM_RODADA:
-            msg = "Preparando proxima rodada..."
+            msg = "Preparando\npróxima rodada..."
             cor = COR_TEXTO_TITULO
 
         if msg:
-            # Painel de mensagem
-            msg_y = ALTURA_TELA - 135
+            linhas = msg.split('\n')
+            # Usa fonte um pouco menor
+            fonte = self.fonte_info 
+            
+            # Calcula altura e largura totais
+            alturas = [fonte.size(l)[1] for l in linhas]
+            h_total = sum(alturas) + (len(linhas) - 1) * 5
+            max_w = max(fonte.size(l)[0] for l in linhas)
+            
+            # Painel na direita
+            padding = 15
+            msg_w = max_w + padding * 2
+            msg_h = h_total + padding * 2
+            
+            msg_x = LARGURA_TELA - msg_w - 20
+            msg_y = ALTURA_TELA // 2 - msg_h // 2
+            
             pygame.draw.rect(
                 self.tela, (*COR_PAINEL, 200),
-                (50, msg_y - 10, LARGURA_TELA - 100, 45),
+                (msg_x, msg_y, msg_w, msg_h),
                 border_radius=8
             )
-            texto = self.fonte_feedback.render(msg, True, cor)
-            self.tela.blit(texto, (LARGURA_TELA // 2 - texto.get_width() // 2, msg_y))
+            
+            cy = msg_y + padding
+            for linha in linhas:
+                texto = fonte.render(linha, True, cor)
+                self.tela.blit(texto, (msg_x + padding, cy))
+                cy += fonte.size(linha)[1] + 5
 
     # =========================================================================
     # LOOP PRINCIPAL DO JOGO

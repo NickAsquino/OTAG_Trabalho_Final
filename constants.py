@@ -43,8 +43,8 @@ import pygame
 # =============================================================================
 
 # --- Dimensões da Tela ---
-LARGURA_TELA = 1280
-ALTURA_TELA = 720
+LARGURA_TELA = 800
+ALTURA_TELA = 600
 FPS = 60
 
 # --- Paleta de Cores (RGB) ---
@@ -105,7 +105,7 @@ CASA_LARGURA  = 100   # Largura de cada casa
 CASA_ALTURA   = 65    # Altura de cada casa
 CASA_ESPACO   = 6     # Espaço entre as casas
 GRID_OFFSET_X = LARGURA_TELA // 2   # Centro horizontal do grid
-GRID_OFFSET_Y = 160                 # Margem superior do grid
+GRID_OFFSET_Y = 80                 # Margem superior do grid
 
 # --- Categorias e Fases ---
 # Cada categoria tem suas próprias fases de progressão
