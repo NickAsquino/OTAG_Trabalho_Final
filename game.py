@@ -36,6 +36,9 @@ class JogoAmarelinha:
     ESTADO_DICA             = "DICA"
     ESTADO_FIM_RODADA       = "FIM_RODADA"
     ESTADO_GAME_OVER        = "GAME_OVER"
+    ESTADO_SELECAO_MODO     = "SELECAO_MODO"
+    ESTADO_TRANSICAO_JOGADOR = "TRANSICAO_JOGADOR"
+    ESTADO_CLASSIFICACAO    = "CLASSIFICACAO"
 
     def __init__(self):
         """Inicializa o jogo, configurando tela, fontes, sons e estado inicial."""
@@ -100,9 +103,28 @@ class JogoAmarelinha:
         # --- Animações da Tela Inicial ---
         self.tempo_inicio_jogo = time.time()  # Para animações baseadas em tempo
 
+        # --- Modo Competitivo ---
+        self.modo_competitivo = False
+        self.jogador_atual = 1            # 1 ou 2
+        self.nomes_jogadores = ["Jogador 1", "Jogador 2"]
+        self.resultados_jogador1 = None   # Armazena stats do jogador 1
+        self.resultados_jogador2 = None   # Armazena stats do jogador 2
+        self.total_dicas_usadas = 0       # Contagem de dicas usadas na sessão
+        self.maior_sequencia_correta = 0  # Maior sequência reproduzida corretamente
+        self.tempo_inicio_sessao = 0      # Tempo de início da sessão do jogador
+        self.tempo_total_sessao = 0       # Tempo total de execução da sessão
+
         # --- Botões da Tela Inicial ---
         self.botao_jogar = pygame.Rect(
             LARGURA_TELA // 2 - 120, 480, 240, 60
+        )
+
+        # --- Botões de Seleção de Modo ---
+        self.botao_modo_solo = pygame.Rect(
+            LARGURA_TELA // 2 - 200, 280, 400, 70
+        )
+        self.botao_modo_competitivo = pygame.Rect(
+            LARGURA_TELA // 2 - 200, 380, 400, 70
         )
 
         # --- Botões de Categoria ---
@@ -312,6 +334,9 @@ class JogoAmarelinha:
         self.pontuacao_total = 0
         self.rodada = 0
         self.vidas = 3
+        self.total_dicas_usadas = 0
+        self.maior_sequencia_correta = 0
+        self.tempo_inicio_sessao = time.time()
 
         print(f"\n  [CATEGORIA] Selecionada: {CATEGORIAS[categoria]['nome']}")
         print(f"  [FASE] Inicial: {CATEGORIAS[categoria]['fases'][self.fase_atual]['nome']}")
@@ -412,6 +437,10 @@ class JogoAmarelinha:
         if casa_clicada is None:
             return  # Clicou fora de qualquer casa
 
+        self._processar_jogada_casa(casa_clicada)
+
+    def _processar_jogada_casa(self, casa_clicada):
+        """Processa a jogada numa casa específica, independente da entrada."""
         # Reset do temporizador de dica
         self.ultimo_clique_tempo = time.time()
 
@@ -439,6 +468,10 @@ class JogoAmarelinha:
         print(f"     Pontos rodada: {self.pontuacao_rodada}")
 
         self.indice_jogador += 1
+
+        # Atualiza maior sequência correta
+        if self.indice_jogador > self.maior_sequencia_correta:
+            self.maior_sequencia_correta = self.indice_jogador
 
         # Verifica se completou a sequência
         if self.indice_jogador >= len(self.sequencia):
@@ -475,8 +508,12 @@ class JogoAmarelinha:
         print(f"     Pontos total: {self.pontuacao_total}")
 
         if self.vidas <= 0:
-            self.estado = self.ESTADO_GAME_OVER
-            print(f"\n  [!!] GAME OVER! Pontuacao final: {self.pontuacao_total}")
+            self.tempo_total_sessao = time.time() - self.tempo_inicio_sessao
+            if self.modo_competitivo:
+                self._finalizar_sessao_jogador()
+            else:
+                self.estado = self.ESTADO_GAME_OVER
+                print(f"\n  [!!] GAME OVER! Pontuacao final: {self.pontuacao_total}")
 
     def verificar_dica(self):
         """
@@ -494,6 +531,7 @@ class JogoAmarelinha:
         """Ativa o sistema de dica, mostrando o caminho correto."""
         self.estado = self.ESTADO_DICA
         self.dica_usada = True
+        self.total_dicas_usadas += 1
         self.dica_indice = self.indice_jogador  # Começa da posição atual
         self.flash_inicio = time.time()
         self.mostrando_flash = True
@@ -566,7 +604,17 @@ class JogoAmarelinha:
         # --- Estado: FIM_RODADA (Transição entre rodadas) ---
         elif self.estado == self.ESTADO_FIM_RODADA:
             if agora - self.tempo_inicio_estado >= 2.0:
-                self._iniciar_contagem()
+                cat = CATEGORIAS[self.categoria_selecionada]
+                if self.rodada >= cat.get("max_rodadas", 999):
+                    # Fim do jogo por completar todas as rodadas
+                    self.tempo_total_sessao = time.time() - self.tempo_inicio_sessao
+                    if self.modo_competitivo:
+                        self._finalizar_sessao_jogador()
+                    else:
+                        self.estado = self.ESTADO_GAME_OVER
+                        print(f"\n  [!!] JOGO CONCLUIDO! Pontuacao final: {self.pontuacao_total}")
+                else:
+                    self._iniciar_contagem()
 
     def _atualizar_contagem(self, agora):
         """Atualiza a contagem regressiva (3, 2, 1, Vai!)."""
@@ -628,6 +676,94 @@ class JogoAmarelinha:
                     print(f"  [DICA] Finalizada. Aguardando jogador novamente...")
 
     # =========================================================================
+    # MODO COMPETITIVO
+    # =========================================================================
+    def _finalizar_sessao_jogador(self):
+        """Finaliza a sessão do jogador atual no modo competitivo."""
+        resultado = {
+            "pontuacao": self.pontuacao_total,
+            "rodadas": self.rodada,
+            "maior_sequencia": self.maior_sequencia_correta,
+            "tempo_total": self.tempo_total_sessao,
+            "dicas_usadas": self.total_dicas_usadas,
+            "fase_alcancada": self.fase_atual,
+            "categoria": self.categoria_selecionada,
+        }
+
+        if self.jogador_atual == 1:
+            self.resultados_jogador1 = resultado
+            print(f"\n  [COMPETITIVO] Jogador 1 finalizou! Pontos: {self.pontuacao_total}")
+            # Prepara transição para jogador 2
+            self.estado = self.ESTADO_TRANSICAO_JOGADOR
+            self.tempo_inicio_estado = time.time()
+        else:
+            self.resultados_jogador2 = resultado
+            print(f"\n  [COMPETITIVO] Jogador 2 finalizou! Pontos: {self.pontuacao_total}")
+            # Ambos jogaram → mostrar classificação
+            self.estado = self.ESTADO_CLASSIFICACAO
+            self.tempo_inicio_estado = time.time()
+
+    def _determinar_vencedor(self):
+        """
+        Determina o vencedor do modo competitivo.
+
+        Critérios (em ordem):
+            1. Maior pontuação acumulada
+            2. Maior sequência reproduzida corretamente (desempate)
+            3. Menor tempo total de execução (desempate)
+            4. Menor quantidade de dicas usadas (desempate)
+
+        Returns:
+            0 para empate, 1 para jogador 1, 2 para jogador 2
+        """
+        r1 = self.resultados_jogador1
+        r2 = self.resultados_jogador2
+
+        # 1º Critério: Maior pontuação
+        if r1["pontuacao"] != r2["pontuacao"]:
+            return 1 if r1["pontuacao"] > r2["pontuacao"] else 2
+
+        # 2º Critério (Desempate): Maior sequência correta
+        if r1["maior_sequencia"] != r2["maior_sequencia"]:
+            return 1 if r1["maior_sequencia"] > r2["maior_sequencia"] else 2
+
+        # 3º Critério (Desempate): Menor tempo total
+        if abs(r1["tempo_total"] - r2["tempo_total"]) > 0.01:
+            return 1 if r1["tempo_total"] < r2["tempo_total"] else 2
+
+        # 4º Critério (Desempate): Menor quantidade de dicas
+        if r1["dicas_usadas"] != r2["dicas_usadas"]:
+            return 1 if r1["dicas_usadas"] < r2["dicas_usadas"] else 2
+
+        # Empate total
+        return 0
+
+    def _iniciar_jogador2(self):
+        """Prepara o jogo para o jogador 2 no modo competitivo."""
+        cat_salva = self.resultados_jogador1["categoria"]
+        resultados_j1 = self.resultados_jogador1
+        modo_comp = self.modo_competitivo
+        nomes = self.nomes_jogadores
+        # Guarda referências da tela
+        tela_real = self.tela_real
+        largura_real = self.largura_janela_real
+        altura_real = self.altura_janela_real
+
+        self.__init__()
+
+        # Restaura estado competitivo
+        self.modo_competitivo = modo_comp
+        self.nomes_jogadores = nomes
+        self.resultados_jogador1 = resultados_j1
+        self.jogador_atual = 2
+        self.tela_real = tela_real
+        self.largura_janela_real = largura_real
+        self.altura_janela_real = altura_real
+
+        # Inicia direto com a mesma categoria
+        self.selecionar_categoria(cat_salva)
+
+    # =========================================================================
     # RENDERIZAÇÃO (DESENHO NA TELA)
     # =========================================================================
     def desenhar(self):
@@ -636,12 +772,18 @@ class JogoAmarelinha:
 
         if self.estado == self.ESTADO_TELA_INICIAL:
             self._desenhar_tela_inicial()
+        elif self.estado == self.ESTADO_SELECAO_MODO:
+            self._desenhar_selecao_modo()
         elif self.estado == self.ESTADO_SELECAO:
             self._desenhar_selecao_categoria()
         elif self.estado == self.ESTADO_CONTAGEM:
             self._desenhar_contagem()
         elif self.estado == self.ESTADO_GAME_OVER:
             self._desenhar_game_over()
+        elif self.estado == self.ESTADO_TRANSICAO_JOGADOR:
+            self._desenhar_transicao_jogador()
+        elif self.estado == self.ESTADO_CLASSIFICACAO:
+            self._desenhar_classificacao()
         else:
             self._desenhar_hud()
             self._desenhar_amarelinha()
@@ -1023,6 +1165,303 @@ class JogoAmarelinha:
         self.tela.blit(txt2, (self.botao_menu.centerx - txt2.get_width() // 2,
                               self.botao_menu.centery - txt2.get_height() // 2))
 
+    def _desenhar_selecao_modo(self):
+        """Desenha a tela de seleção de modo (Solo / Competitivo)."""
+        agora = time.time()
+        t = agora - self.tempo_inicio_jogo
+
+        # --- Partículas de fundo ---
+        self._desenhar_particulas(t)
+
+        # --- Título ---
+        titulo = self.fonte_titulo.render("MODO DE JOGO", True, COR_TEXTO_TITULO)
+        self.tela.blit(titulo, (LARGURA_TELA // 2 - titulo.get_width() // 2, 80))
+
+        # Linha decorativa
+        pygame.draw.line(
+            self.tela, COR_TEXTO_TITULO,
+            (LARGURA_TELA // 2 - 150, 145),
+            (LARGURA_TELA // 2 + 150, 145),
+            2
+        )
+
+        # Subtítulo
+        sub = self.fonte_subtitulo.render("Escolha como deseja jogar", True, COR_TEXTO_INFO)
+        self.tela.blit(sub, (LARGURA_TELA // 2 - sub.get_width() // 2, 170))
+
+        pos_mouse = self.traduzir_posicao_mouse(pygame.mouse.get_pos())
+
+        # --- Botão Solo ---
+        hover_solo = self.botao_modo_solo.collidepoint(pos_mouse)
+        rect_solo = self.botao_modo_solo.copy()
+        if hover_solo:
+            rect_solo.inflate_ip(6, 4)
+
+        sombra = rect_solo.copy()
+        sombra.move_ip(3, 3)
+        pygame.draw.rect(self.tela, (15, 15, 25), sombra, border_radius=15)
+
+        cor_solo = COR_BOTAO_HOVER if hover_solo else COR_BOTAO
+        pygame.draw.rect(self.tela, cor_solo, rect_solo, border_radius=15)
+        pygame.draw.rect(self.tela, COR_BOTAO_BORDA, rect_solo, width=2, border_radius=15)
+
+        txt_solo = self.fonte_botao.render("SOLO", True, BRANCO)
+        desc_solo = self.fonte_categoria_desc.render("Jogue sozinho e supere seus recordes", True, CINZA_CLARO)
+        self.tela.blit(txt_solo, (rect_solo.centerx - txt_solo.get_width() // 2, rect_solo.y + 12))
+        self.tela.blit(desc_solo, (rect_solo.centerx - desc_solo.get_width() // 2, rect_solo.y + 44))
+
+        # --- Botão Competitivo ---
+        hover_comp = self.botao_modo_competitivo.collidepoint(pos_mouse)
+        rect_comp = self.botao_modo_competitivo.copy()
+        if hover_comp:
+            rect_comp.inflate_ip(6, 4)
+
+        sombra2 = rect_comp.copy()
+        sombra2.move_ip(3, 3)
+        pygame.draw.rect(self.tela, (15, 15, 25), sombra2, border_radius=15)
+
+        cor_comp = COR_BOTAO_HOVER if hover_comp else COR_BOTAO
+        pygame.draw.rect(self.tela, cor_comp, rect_comp, border_radius=15)
+        # Borda lateral colorida (jogador 1 esquerda, jogador 2 direita)
+        borda_esq = pygame.Rect(rect_comp.x, rect_comp.y, 6, rect_comp.height)
+        pygame.draw.rect(self.tela, COR_JOGADOR1, borda_esq, border_radius=3)
+        borda_dir = pygame.Rect(rect_comp.right - 6, rect_comp.y, 6, rect_comp.height)
+        pygame.draw.rect(self.tela, COR_JOGADOR2, borda_dir, border_radius=3)
+        pygame.draw.rect(self.tela, COR_BOTAO_BORDA, rect_comp, width=2, border_radius=15)
+
+        txt_comp = self.fonte_botao.render("COMPETITIVO", True, BRANCO)
+        desc_comp = self.fonte_categoria_desc.render("2 jogadores competem no mesmo equipamento", True, CINZA_CLARO)
+        self.tela.blit(txt_comp, (rect_comp.centerx - txt_comp.get_width() // 2, rect_comp.y + 12))
+        self.tela.blit(desc_comp, (rect_comp.centerx - desc_comp.get_width() // 2, rect_comp.y + 44))
+
+        # "VS" decorativo
+        vs_txt = self.fonte_contagem.render("VS", True, (60, 60, 90))
+        self.tela.blit(vs_txt, (LARGURA_TELA // 2 - vs_txt.get_width() // 2, 490))
+
+        # --- Botão Voltar ---
+        hover_voltar = self.botao_voltar.collidepoint(pos_mouse)
+        cor_voltar = CINZA_ESCURO if not hover_voltar else CINZA_MEDIO
+        pygame.draw.rect(self.tela, cor_voltar, self.botao_voltar, border_radius=8)
+        pygame.draw.rect(self.tela, CINZA_MEDIO, self.botao_voltar, width=1, border_radius=8)
+        txt_voltar = self.fonte_instrucao.render("< Voltar", True, BRANCO)
+        self.tela.blit(
+            txt_voltar,
+            (self.botao_voltar.centerx - txt_voltar.get_width() // 2,
+             self.botao_voltar.centery - txt_voltar.get_height() // 2)
+        )
+
+    def _desenhar_transicao_jogador(self):
+        """Desenha a tela de transição entre jogador 1 e jogador 2."""
+        agora = time.time()
+        t = agora - self.tempo_inicio_estado
+
+        # Partículas de fundo
+        self._desenhar_particulas(t)
+
+        # Título
+        titulo = self.fonte_titulo.render("VEZ DO JOGADOR 2", True, COR_JOGADOR2)
+        self.tela.blit(titulo, (LARGURA_TELA // 2 - titulo.get_width() // 2, 100))
+
+        # Linha decorativa
+        pygame.draw.line(
+            self.tela, COR_JOGADOR2,
+            (LARGURA_TELA // 2 - 180, 165),
+            (LARGURA_TELA // 2 + 180, 165),
+            2
+        )
+
+        # Resumo do Jogador 1
+        r1 = self.resultados_jogador1
+        resumo_titulo = self.fonte_subtitulo.render(
+            f"Resultado - {self.nomes_jogadores[0]}:", True, COR_JOGADOR1
+        )
+        self.tela.blit(resumo_titulo, (LARGURA_TELA // 2 - resumo_titulo.get_width() // 2, 210))
+
+        info_items = [
+            f"Pontuacao: {r1['pontuacao']}",
+            f"Rodadas: {r1['rodadas']}  |  Maior sequencia: {r1['maior_sequencia']}",
+            f"Tempo: {r1['tempo_total']:.1f}s  |  Dicas: {r1['dicas_usadas']}",
+        ]
+        y = 260
+        for item in info_items:
+            txt = self.fonte_info.render(item, True, COR_TEXTO_INFO)
+            self.tela.blit(txt, (LARGURA_TELA // 2 - txt.get_width() // 2, y))
+            y += 35
+
+        # Mensagem motivacional
+        msg = self.fonte_subtitulo.render(
+            f"{self.nomes_jogadores[1]}, prepare-se!", True, COR_JOGADOR2
+        )
+        self.tela.blit(msg, (LARGURA_TELA // 2 - msg.get_width() // 2, 420))
+
+        # Botão Iniciar
+        self.botao_iniciar_j2 = pygame.Rect(LARGURA_TELA // 2 - 140, 500, 280, 60)
+        pos_mouse = self.traduzir_posicao_mouse(pygame.mouse.get_pos())
+        hover = self.botao_iniciar_j2.collidepoint(pos_mouse)
+
+        sombra = self.botao_iniciar_j2.copy()
+        sombra.move_ip(3, 3)
+        pygame.draw.rect(self.tela, (15, 15, 25), sombra, border_radius=15)
+
+        cor_btn = COR_BOTAO_HOVER if hover else COR_BOTAO
+        pygame.draw.rect(self.tela, cor_btn, self.botao_iniciar_j2, border_radius=15)
+        pygame.draw.rect(self.tela, COR_JOGADOR2, self.botao_iniciar_j2, width=2, border_radius=15)
+
+        txt_btn = self.fonte_botao.render("INICIAR", True, BRANCO)
+        self.tela.blit(txt_btn, (self.botao_iniciar_j2.centerx - txt_btn.get_width() // 2,
+                                  self.botao_iniciar_j2.centery - txt_btn.get_height() // 2))
+
+    def _desenhar_classificacao(self):
+        """Desenha a tela de classificação final do modo competitivo."""
+        agora = time.time()
+        t = agora - self.tempo_inicio_estado
+
+        # Partículas douradas
+        random.seed(77)
+        for i in range(25):
+            x = random.randint(0, LARGURA_TELA)
+            y = random.randint(0, ALTURA_TELA)
+            x = (x + int(math.sin(t * 0.4 + i) * 35)) % LARGURA_TELA
+            y = (y + int(math.cos(t * 0.3 + i * 0.6) * 25)) % ALTURA_TELA
+            raio = int(2 + math.sin(t + i) * 1.5)
+            cor = (
+                200 + int(55 * math.sin(t + i)),
+                180 + int(35 * math.sin(t * 0.7 + i)),
+                int(50 + 50 * math.sin(t * 0.5 + i))
+            )
+            pygame.draw.circle(self.tela, cor, (x, y), max(1, raio))
+        random.seed()
+
+        vencedor = self._determinar_vencedor()
+        r1 = self.resultados_jogador1
+        r2 = self.resultados_jogador2
+
+        # Título
+        titulo = self.fonte_titulo.render("CLASSIFICACAO", True, COR_OURO)
+        self.tela.blit(titulo, (LARGURA_TELA // 2 - titulo.get_width() // 2, 30))
+        pygame.draw.line(
+            self.tela, COR_OURO,
+            (LARGURA_TELA // 2 - 160, 90),
+            (LARGURA_TELA // 2 + 160, 90),
+            2
+        )
+
+        # --- Resultado do vencedor ---
+        if vencedor == 0:
+            resultado_txt = self.fonte_subtitulo.render("EMPATE!", True, COR_EMPATE)
+        elif vencedor == 1:
+            resultado_txt = self.fonte_subtitulo.render(
+                f"{self.nomes_jogadores[0]} VENCEU!", True, COR_OURO
+            )
+        else:
+            resultado_txt = self.fonte_subtitulo.render(
+                f"{self.nomes_jogadores[1]} VENCEU!", True, COR_OURO
+            )
+        self.tela.blit(resultado_txt, (LARGURA_TELA // 2 - resultado_txt.get_width() // 2, 105))
+
+        # --- Tabela comparativa ---
+        col1_x = LARGURA_TELA // 2 - 250
+        col2_x = LARGURA_TELA // 2 + 50
+        header_y = 160
+
+        # Cores dos cartões baseadas no resultado
+        cor_j1 = COR_OURO if vencedor == 1 else (COR_EMPATE if vencedor == 0 else COR_PRATA)
+        cor_j2 = COR_OURO if vencedor == 2 else (COR_EMPATE if vencedor == 0 else COR_PRATA)
+
+        # Cartão Jogador 1
+        card1 = pygame.Rect(col1_x - 15, header_y - 10, 280, 340)
+        pygame.draw.rect(self.tela, (40, 45, 65), card1, border_radius=12)
+        pygame.draw.rect(self.tela, cor_j1, card1, width=2, border_radius=12)
+        borda_top1 = pygame.Rect(card1.x, card1.y, card1.width, 6)
+        pygame.draw.rect(self.tela, COR_JOGADOR1, borda_top1, border_radius=3)
+
+        h1 = self.fonte_categoria_titulo.render(self.nomes_jogadores[0], True, COR_JOGADOR1)
+        self.tela.blit(h1, (card1.centerx - h1.get_width() // 2, header_y + 10))
+
+        if vencedor == 1:
+            badge = self.fonte_categoria_icone.render("VENCEDOR", True, COR_OURO)
+            self.tela.blit(badge, (card1.centerx - badge.get_width() // 2, header_y + 45))
+
+        stats1 = [
+            (f"Pontuacao: {r1['pontuacao']}", COR_TEXTO_PONTOS),
+            (f"Rodadas: {r1['rodadas']}", COR_TEXTO_INFO),
+            (f"Maior seq: {r1['maior_sequencia']}", COR_TEXTO_INFO),
+            (f"Tempo: {r1['tempo_total']:.1f}s", COR_TEXTO_INFO),
+            (f"Dicas: {r1['dicas_usadas']}", COR_TEXTO_INFO),
+            (f"Fase: {CATEGORIAS[r1['categoria']]['fases'][r1['fase_alcancada']]['nome']}", COR_TEXTO_FASE),
+        ]
+        y = header_y + 75
+        for texto, cor in stats1:
+            txt = self.fonte_info.render(texto, True, cor)
+            self.tela.blit(txt, (card1.centerx - txt.get_width() // 2, y))
+            y += 35
+
+        # Cartão Jogador 2
+        card2 = pygame.Rect(col2_x - 15, header_y - 10, 280, 340)
+        pygame.draw.rect(self.tela, (40, 45, 65), card2, border_radius=12)
+        pygame.draw.rect(self.tela, cor_j2, card2, width=2, border_radius=12)
+        borda_top2 = pygame.Rect(card2.x, card2.y, card2.width, 6)
+        pygame.draw.rect(self.tela, COR_JOGADOR2, borda_top2, border_radius=3)
+
+        h2 = self.fonte_categoria_titulo.render(self.nomes_jogadores[1], True, COR_JOGADOR2)
+        self.tela.blit(h2, (card2.centerx - h2.get_width() // 2, header_y + 10))
+
+        if vencedor == 2:
+            badge2 = self.fonte_categoria_icone.render("VENCEDOR", True, COR_OURO)
+            self.tela.blit(badge2, (card2.centerx - badge2.get_width() // 2, header_y + 45))
+
+        stats2 = [
+            (f"Pontuacao: {r2['pontuacao']}", COR_TEXTO_PONTOS),
+            (f"Rodadas: {r2['rodadas']}", COR_TEXTO_INFO),
+            (f"Maior seq: {r2['maior_sequencia']}", COR_TEXTO_INFO),
+            (f"Tempo: {r2['tempo_total']:.1f}s", COR_TEXTO_INFO),
+            (f"Dicas: {r2['dicas_usadas']}", COR_TEXTO_INFO),
+            (f"Fase: {CATEGORIAS[r2['categoria']]['fases'][r2['fase_alcancada']]['nome']}", COR_TEXTO_FASE),
+        ]
+        y = header_y + 75
+        for texto, cor in stats2:
+            txt = self.fonte_info.render(texto, True, cor)
+            self.tela.blit(txt, (card2.centerx - txt.get_width() // 2, y))
+            y += 35
+
+        # --- Critério de desempate usado ---
+        criterio = ""
+        if vencedor != 0:
+            if r1["pontuacao"] != r2["pontuacao"]:
+                criterio = "Criterio: Maior pontuacao"
+            elif r1["maior_sequencia"] != r2["maior_sequencia"]:
+                criterio = "Desempate: Maior sequencia correta"
+            elif abs(r1["tempo_total"] - r2["tempo_total"]) > 0.01:
+                criterio = "Desempate: Menor tempo de execucao"
+            else:
+                criterio = "Desempate: Menor quantidade de dicas"
+        if criterio:
+            crit_txt = self.fonte_instrucao.render(criterio, True, COR_TEXTO_FASE)
+            self.tela.blit(crit_txt, (LARGURA_TELA // 2 - crit_txt.get_width() // 2, 520))
+
+        # --- Botões ---
+        pos_mouse = self.traduzir_posicao_mouse(pygame.mouse.get_pos())
+
+        # Botão "Jogar Novamente"
+        self.botao_classificacao_jogar = pygame.Rect(LARGURA_TELA // 2 - 140, 570, 280, 50)
+        hover_jogar = self.botao_classificacao_jogar.collidepoint(pos_mouse)
+        cor_btn = COR_BOTAO_HOVER if hover_jogar else COR_BOTAO
+        pygame.draw.rect(self.tela, cor_btn, self.botao_classificacao_jogar, border_radius=12)
+        pygame.draw.rect(self.tela, COR_BOTAO_BORDA, self.botao_classificacao_jogar, width=2, border_radius=12)
+        txt = self.fonte_botao.render("Jogar Novamente", True, BRANCO)
+        self.tela.blit(txt, (self.botao_classificacao_jogar.centerx - txt.get_width() // 2,
+                              self.botao_classificacao_jogar.centery - txt.get_height() // 2))
+
+        # Botão "Menu Inicial"
+        self.botao_classificacao_menu = pygame.Rect(LARGURA_TELA // 2 - 140, 635, 280, 50)
+        hover_menu = self.botao_classificacao_menu.collidepoint(pos_mouse)
+        cor_btn2 = CINZA_ESCURO if not hover_menu else CINZA_MEDIO
+        pygame.draw.rect(self.tela, cor_btn2, self.botao_classificacao_menu, border_radius=12)
+        pygame.draw.rect(self.tela, CINZA_MEDIO, self.botao_classificacao_menu, width=2, border_radius=12)
+        txt2 = self.fonte_botao.render("Menu Inicial", True, BRANCO)
+        self.tela.blit(txt2, (self.botao_classificacao_menu.centerx - txt2.get_width() // 2,
+                               self.botao_classificacao_menu.centery - txt2.get_height() // 2))
+
     def _desenhar_hud(self):
         """Desenha o HUD (Heads-Up Display) com informações do jogo."""
         # Painel superior
@@ -1044,6 +1483,22 @@ class JogoAmarelinha:
             f"Pontos: {self.pontuacao_total}", True, COR_TEXTO_PONTOS
         )
         self.tela.blit(pontos_txt, (LARGURA_TELA // 2 - pontos_txt.get_width() // 2, 15))
+
+        # Indicador de jogador no modo competitivo
+        if self.modo_competitivo:
+            cor_jogador = COR_JOGADOR1 if self.jogador_atual == 1 else COR_JOGADOR2
+            nome_jogador = self.nomes_jogadores[self.jogador_atual - 1]
+            jogador_txt = self.fonte_info.render(
+                f"{nome_jogador}", True, cor_jogador
+            )
+            pill_rect = pygame.Rect(
+                LARGURA_TELA // 2 - jogador_txt.get_width() // 2 - 10, 35,
+                jogador_txt.get_width() + 20, 25
+            )
+            pygame.draw.rect(self.tela, (30, 30, 50), pill_rect, border_radius=12)
+            pygame.draw.rect(self.tela, cor_jogador, pill_rect, width=1, border_radius=12)
+            self.tela.blit(jogador_txt, (pill_rect.centerx - jogador_txt.get_width() // 2,
+                                          pill_rect.centery - jogador_txt.get_height() // 2))
 
         # Vidas e Rodada
         vidas_txt = self.fonte_info.render(
@@ -1205,9 +1660,18 @@ class JogoAmarelinha:
                     if evento.key == pygame.K_ESCAPE:
                         # ESC volta para a tela anterior, ou sai do jogo
                         if self.estado == self.ESTADO_SELECAO:
+                            if self.modo_competitivo and self.jogador_atual == 2:
+                                pass  # Não pode voltar durante a vez do jogador 2
+                            else:
+                                self.estado = self.ESTADO_SELECAO_MODO
+                        elif self.estado == self.ESTADO_SELECAO_MODO:
                             self.estado = self.ESTADO_TELA_INICIAL
                         elif self.estado in (self.ESTADO_TELA_INICIAL,):
                             rodando = False
+                        elif self.estado == self.ESTADO_CLASSIFICACAO:
+                            self.__init__()
+                        elif self.estado == self.ESTADO_TRANSICAO_JOGADOR:
+                            pass  # Não pode pular a vez do jogador 2
                         else:
                             # Durante o jogo, ESC volta ao menu
                             self.estado = self.ESTADO_TELA_INICIAL
@@ -1217,6 +1681,16 @@ class JogoAmarelinha:
                         # Reinicia o jogo
                         self.__init__()
                         self.estado = self.ESTADO_TELA_INICIAL
+                        
+                    elif self.estado == self.ESTADO_REPRODUZIR:
+                        # Teclado numérico principal (1 a 9)
+                        if pygame.K_1 <= evento.key <= pygame.K_9:
+                            casa = evento.key - pygame.K_0
+                            self._processar_jogada_casa(casa)
+                        # Teclado numérico lateral (Numpad 1 a 9)
+                        elif pygame.K_KP1 <= evento.key <= pygame.K_KP9:
+                            casa = evento.key - pygame.K_KP1 + 1
+                            self._processar_jogada_casa(casa)
 
                 elif evento.type == pygame.MOUSEBUTTONDOWN:
                     pos_virtual = self.traduzir_posicao_mouse(evento.pos)
@@ -1224,8 +1698,21 @@ class JogoAmarelinha:
                         if self.estado == self.ESTADO_TELA_INICIAL:
                             # Verifica clique no botão JOGAR
                             if self.botao_jogar.collidepoint(pos_virtual):
+                                self.estado = self.ESTADO_SELECAO_MODO
+                                self.tempo_inicio_jogo = time.time()
+
+                        elif self.estado == self.ESTADO_SELECAO_MODO:
+                            if self.botao_modo_solo.collidepoint(pos_virtual):
+                                self.modo_competitivo = False
                                 self.estado = self.ESTADO_SELECAO
-                                self.tempo_inicio_jogo = time.time()  # Reset para animações
+                                self.tempo_inicio_jogo = time.time()
+                            elif self.botao_modo_competitivo.collidepoint(pos_virtual):
+                                self.modo_competitivo = True
+                                self.jogador_atual = 1
+                                self.estado = self.ESTADO_SELECAO
+                                self.tempo_inicio_jogo = time.time()
+                            elif self.botao_voltar.collidepoint(pos_virtual):
+                                self.estado = self.ESTADO_TELA_INICIAL
 
                         elif self.estado == self.ESTADO_SELECAO:
                             # Verifica clique nos botões de categoria
@@ -1235,7 +1722,10 @@ class JogoAmarelinha:
                                     break
                             # Verifica clique no botão voltar
                             if self.botao_voltar.collidepoint(pos_virtual):
-                                self.estado = self.ESTADO_TELA_INICIAL
+                                if self.modo_competitivo and self.jogador_atual == 2:
+                                    pass  # Não pode voltar durante a vez do jogador 2
+                                else:
+                                    self.estado = self.ESTADO_SELECAO_MODO
 
                         elif self.estado == self.ESTADO_REPRODUZIR:
                             # Clicou durante a reprodução → processa entrada
@@ -1257,6 +1747,24 @@ class JogoAmarelinha:
                             elif hasattr(self, 'botao_menu') and \
                                  self.botao_menu.collidepoint(pos_virtual):
                                 # Voltar ao menu inicial
+                                self.__init__()
+
+                        elif self.estado == self.ESTADO_TRANSICAO_JOGADOR:
+                            if hasattr(self, 'botao_iniciar_j2') and \
+                               self.botao_iniciar_j2.collidepoint(pos_virtual):
+                                self._iniciar_jogador2()
+
+                        elif self.estado == self.ESTADO_CLASSIFICACAO:
+                            if hasattr(self, 'botao_classificacao_jogar') and \
+                               self.botao_classificacao_jogar.collidepoint(pos_virtual):
+                                cat = self.resultados_jogador1["categoria"]
+                                self.__init__()
+                                self.modo_competitivo = True
+                                self.jogador_atual = 1
+                                self.estado = self.ESTADO_SELECAO
+                                self.tempo_inicio_jogo = time.time()
+                            elif hasattr(self, 'botao_classificacao_menu') and \
+                                 self.botao_classificacao_menu.collidepoint(pos_virtual):
                                 self.__init__()
 
             # --- Atualização ---

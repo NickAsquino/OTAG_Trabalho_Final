@@ -84,6 +84,13 @@ COR_BOTAO          = (60,  80,  140)   # Azul médio
 COR_BOTAO_HOVER    = (80,  110, 180)   # Azul claro
 COR_BOTAO_BORDA    = (100, 130, 200)   # Borda do botão
 
+# Cores do Modo Competitivo
+COR_JOGADOR1       = (80,  180, 255)   # Azul claro (Jogador 1)
+COR_JOGADOR2       = (255, 130, 80)    # Laranja (Jogador 2)
+COR_OURO           = (255, 215, 0)     # Dourado (vencedor)
+COR_PRATA          = (192, 192, 192)   # Prata (segundo lugar)
+COR_EMPATE         = (180, 180, 255)   # Lilás (empate)
+
 # --- Dimensões do Grid da Amarelinha ---
 # O layout da amarelinha clássica:
 #   Casa 9 (topo, sozinha - "Céu")
@@ -94,11 +101,11 @@ COR_BOTAO_BORDA    = (100, 130, 200)   # Borda do botão
 #   Casas 1 e 2 (lado a lado)
 # (De baixo para cima, como na amarelinha real)
 
-CASA_LARGURA  = 120   # Largura de cada casa
-CASA_ALTURA   = 80    # Altura de cada casa
+CASA_LARGURA  = 100   # Largura de cada casa
+CASA_ALTURA   = 65    # Altura de cada casa
 CASA_ESPACO   = 6     # Espaço entre as casas
 GRID_OFFSET_X = LARGURA_TELA // 2   # Centro horizontal do grid
-GRID_OFFSET_Y = 140                 # Margem superior do grid
+GRID_OFFSET_Y = 160                 # Margem superior do grid
 
 # --- Categorias e Fases ---
 # Cada categoria tem suas próprias fases de progressão
@@ -108,6 +115,7 @@ CATEGORIAS = {
         "cor": COR_INICIANTE,
         "descricao": "Sequências curtas e tempo generoso",
         "icone": "★",
+        "max_rodadas": 5,
         "fases": {
             "A": {"SEQ": 3, "TMP": 6.0, "nome": "Fase 1 - Aquecimento"},
             "B": {"SEQ": 3, "TMP": 5.0, "nome": "Fase 2 - Caminhada"},
@@ -121,6 +129,7 @@ CATEGORIAS = {
         "cor": COR_INTERMEDIARIO,
         "descricao": "Sequências médias e tempo moderado",
         "icone": "★★",
+        "max_rodadas": 7,
         "fases": {
             "A": {"SEQ": 4, "TMP": 4.5, "nome": "Fase 1 - Desafio"},
             "B": {"SEQ": 5, "TMP": 4.0, "nome": "Fase 2 - Ritmo"},
@@ -135,6 +144,7 @@ CATEGORIAS = {
         "cor": COR_AVANCADO,
         "descricao": "Sequências longas e pouco tempo",
         "icone": "★★★",
+        "max_rodadas": 10,
         "fases": {
             "A": {"SEQ": 5, "TMP": 3.0, "nome": "Fase 1 - Sprint"},
             "B": {"SEQ": 6, "TMP": 2.5, "nome": "Fase 2 - Turbinado"},

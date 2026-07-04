@@ -1,18 +1,22 @@
-# 🎯 AMAR-É-LINDO — Exergame de Amarelinha
+# AMAR-É-LINDO — Exergame de Amarelinha
 
 ## Descrição
 MVP (Minimum Viable Product) de um exergame baseado na brincadeira tradicional de amarelinha.
-O jogador deve memorizar uma sequência de casas iluminadas e reproduzi-la na ordem correta.
+O jogador deve memorizar uma sequência de casas iluminadas e reproduzi-la na ordem correta. O jogo agora conta com diferentes dificuldades e suporte para dois jogadores em modo competitivo.
 
 ## Estrutura do Projeto
+O projeto foi modularizado para melhor organização e manutenção do código:
 ```
 AmarELindo/
-├── main.py                ← Código principal do jogo
+├── main.py                ← Ponto de entrada (inicializa o jogo)
+├── game.py                ← Lógica central, máquina de estados e renderização
+├── constants.py           ← Configurações, cores e definições de categorias
+├── board.py               ← Lógica de construção do grid da amarelinha
 ├── README.md              ← Este arquivo
 └── assets/
-    ├── images/            ← Coloque imagens aqui (logo, backgrounds, sprites)
-    ├── sounds/            ← Coloque sons aqui (ver lista abaixo)
-    └── fonts/             ← Coloque fontes .ttf personalizadas aqui
+    ├── images/            ← Imagens (logo, backgrounds, sprites)
+    ├── sounds/            ← Efeitos sonoros (.wav)
+    └── fonts/             ← Fontes personalizadas (.ttf)
 ```
 
 ## Como Executar
@@ -21,13 +25,24 @@ pip install pygame
 python main.py
 ```
 
+## Detalhes
+- **Modo Competitivo Intergeracional:**
+  - Dois jogadores participam no mesmo equipamento em sessões independentes.
+  - O vencedor é decidido pela pontuação acumulada.
+  - Critérios de desempate automáticos: Maior sequência correta > Menor tempo total > Menor número de dicas utilizadas.
+  - Tela de classificação final comparando os status de ambos os jogadores.
+- **Categorias de Dificuldade com Limite de Rodadas:**
+  - **Iniciante:** Fases mais lentas, máximo de 5 rodadas.
+  - **Intermediário:** Fases moderadas, máximo de 7 rodadas.
+  - **Avançado:** Fases rápidas e longas, máximo de 10 rodadas.
+
 ## Controles
-| Ação               | Controle        |
-|---------------------|-----------------|
-| Iniciar jogo       | Clique do mouse |
-| Clicar nas casas   | Clique do mouse |
-| Reiniciar          | Tecla `R`       |
-| Sair               | Tecla `ESC`     |
+| Ação               | Controle                                     |
+|--------------------|----------------------------------------------|
+| Iniciar jogo / Navegar | Clique do mouse                            |
+| Validar casas      | Clique do mouse **OU** Teclas `1` a `9` (NumPad/Teclado) |
+| Reiniciar          | Tecla `R`                                    |
+| Voltar / Sair      | Tecla `ESC`                                  |
 
 ## Sons (opcionais)
 Coloque arquivos `.wav` na pasta `assets/sounds/`:
@@ -38,24 +53,12 @@ Coloque arquivos `.wav` na pasta `assets/sounds/`:
 - `inicio.wav` — Toca ao iniciar uma rodada
 
 ## Regras
-- **Acerto:** +10 pontos por casa correta
-- **Sequência completa:** +20 pontos de bônus
-- **Dica (3s sem clicar):** -10 pontos
-- **Erro:** Pontuação da rodada zerada, perde 1 vida
-- **3 vidas** por partida
-
-## Fases
-| Fase | Casas na sequência | Tempo de memorização |
-|------|--------------------|----------------------|
-| A    | 3                  | 5.0s                 |
-| B    | 4                  | 4.0s                 |
-| C    | 5                  | 3.5s                 |
-| D    | 6                  | 3.0s                 |
-| E    | 7                  | 2.5s                 |
-| F    | 8                  | 2.0s                 |
-| G    | 9                  | 1.5s                 |
+- **Acerto:** +10 pontos por casa correta.
+- **Sequência completa:** +20 pontos de bônus.
+- **Dica:** Ativada ao ficar alguns segundos sem clicar, mostra o próximo passo. Custa pontos (desconto na rodada).
+- **Erro:** Pontuação da rodada zerada, perde 1 vida. O jogador possui 3 vidas por partida.
+- **Condição de Vitória:** Completar o número máximo de rodadas da categoria.
+- **Game Over:** Perder as 3 vidas.
 
 ## Integração Futura com Câmera
-Os pontos de integração estão marcados no código com comentários.
-O método principal é `processar_entrada_jogador(pos)` — basta substituir
-as coordenadas do mouse pelas coordenadas detectadas pela visão computacional.
+Os pontos de integração para visão computacional continuam demarcados. O método principal é `processar_entrada_jogador(pos)` e, agora, também existe o método direto `_processar_jogada_casa(casa)`, o qual pode receber diretamente o número da casa (1 a 9) processado pela câmera.
