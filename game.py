@@ -797,6 +797,20 @@ class JogoAmarelinha:
             self._desenhar_amarelinha()
             self._desenhar_mensagem_estado()
 
+        # --- DESENHA O CURSOR DA CÂMERA EM TEMPO REAL ---
+        if self.pos_camera_atual is not None:
+            # Desenha um círculo vermelho (ou a cor que preferir) com raio 15
+            # na coordenada exata calculada pelo MediaPipe
+            pygame.draw.circle(self.tela, (255, 0, 0), self.pos_camera_atual, 15)
+            
+            # Opcional: desenha uma borda branca para destacar em fundos escuros
+            pygame.draw.circle(self.tela, (255, 255, 255), self.pos_camera_atual, 15, width=2)
+
+        # (Abaixo permanece o seu código original de fechamento do método)
+        tela_redimensionada = pygame.transform.smoothscale(self.tela, (self.largura_janela_real, self.altura_janela_real))
+        self.tela_real.blit(tela_redimensionada, (0, 0))
+        pygame.display.flip()
+
         tela_redimensionada = pygame.transform.smoothscale(self.tela, (self.largura_janela_real, self.altura_janela_real))
         self.tela_real.blit(tela_redimensionada, (0, 0))
         pygame.display.flip()

@@ -185,11 +185,11 @@ ADJACENCIA = {
 }
 
 # --- Timing ---
-TEMPO_FLASH_CASA    = 0.5     # Tempo que cada casa fica iluminada na sequência (s)
-TEMPO_INTERVALO     = 0.2     # Intervalo entre cada flash da sequência (s)
+TEMPO_FLASH_CASA    = 1.5     # Tempo que cada casa fica iluminada na sequência (s)
+TEMPO_INTERVALO     = 1.0     # Intervalo entre cada flash da sequência (s)
 TEMPO_FEEDBACK      = 0.6     # Tempo que o feedback (verde/vermelho) fica visível (s)
-TEMPO_DICA          = 3.0     # Segundos de inatividade antes de mostrar a dica
-TEMPO_DICA_FLASH    = 0.3     # Tempo que cada casa pisca na dica (s)
+TEMPO_DICA          = 4.0     # Segundos de inatividade antes de mostrar a dica
+TEMPO_DICA_FLASH    = 1.5     # Tempo que cada casa pisca na dica (s)
 TEMPO_MOSTRA_CORRETA = 1.0   # Tempo para mostrar a casa correta após erro (s)
 TEMPO_CONTAGEM      = 1.0    # Tempo de cada número na contagem regressiva (s)
 

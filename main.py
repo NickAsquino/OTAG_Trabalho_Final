@@ -59,7 +59,7 @@ pygame.init()
 pygame.mixer.init()
 
 
-from game import JogoAmarelinha
+from teste_camera_mediapipe import JogoAmarelinha
 
 # =============================================================================
 # PONTO DE ENTRADA
